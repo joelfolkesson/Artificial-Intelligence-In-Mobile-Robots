@@ -1,0 +1,7 @@
+//-------------------------------- PLAYER 2.0.* EXAMPLES
+
+/** \example examples/basic.c
+ * This is an example of how make a program for e-puck position2d interface.
+ * The e-puck goes 10cm forward, printing the current pose.
+ */
+
