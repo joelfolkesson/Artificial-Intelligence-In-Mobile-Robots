@@ -7,11 +7,9 @@
 #define NO_DANGER 300
 #define FULL_DANGER 400
 #define FORCE_FULL_DANGER 700
-#define EXPAND_ERR 0.25
+#define EXPAND_ERR 0.3
 
-//problemet just nu är att när replann anropas, så hoppar den till kanten av cellen i den interna kartan,
-//säg att vi står i mitten, då hoppar den till kanten av cellen (som är positionen).
-// måste lagra undan nuvarande pos
+
 
 void update_pos    (Steps *prev){
     Steps s         = GetSteps();
@@ -57,7 +55,7 @@ int GoTo2(Steps *prevSteps, Posture *goal){
 				pos_err       ,
 	      kpos      = 1.5,
 				kth       = -3,
-				delta_pos = 25;
+				delta_pos = 10;
   FPred Pos_Left, Pos_Right, Pos_Ahead, Pos_Here, DANGER, Obs_Left,Obs_Right,Obs_Ahead;
 	//update_pos(prevSteps);
 	Posture currentPos = GetPosture();
@@ -283,13 +281,8 @@ void GoToLab6(){
 //==============================================================================//
 //                                FINAL EXAM                                    //
 //==============================================================================//
-Posture GlobalPos = GetPosture();
-void SetGlobalPos(int x, int y){
-  GlobalPos.x  = x;
-  GlobalPos.y  = y;
-  GlobalPos.th = 0;
-  SetPosture(GlobalPos.x,GlobalPos.y,GlobalPos.th);
-}
+
+
 
 char mapname[50] = "../real_robot/src/SampleMaps/custom.txt";
 Map* grid        = CreateMapFromFile(0,mapname);
@@ -368,8 +361,8 @@ void FuzzyPlanSearch(double arrayX[], double arrayY[], int counter){
         ClearFSet         (f_set_vrot);
         FuzzyAvoid        ();
         Posture now     = GetPosture();
-        storeNewStart.i = (int)now.x/25;
-        storeNewStart.j = (int)now.y/25;
+        storeNewStart.i = (int)now.x/100;
+        storeNewStart.j = (int)now.y/100;
         RePlan            (storeNewStart,storeGoal);
         condition       = GoTo2(&prevSteps,&goal);
         DeFuzzify         (f_set_vrot, 3, &rot);
@@ -460,14 +453,12 @@ void Plan(Cell startCell, Cell goalCell){
           nextCell.j = bestCell.j;
 
       }
-      //if(GetCellState(grid,nextCell.i,nextCell.j) != MAP_OBSTACLE){ //if path-node is in an obstacle, dont add.
-        Push(Path,nextCell);
-        bestCell.i = nextCell.i;
-        bestCell.j = nextCell.j;
-        bestCell.h_value = 0;
-        ChangeCellState(grid,bestCell.i,bestCell.j,-5);
-        counter++;
-    //  }
+      Push(Path,nextCell);
+      bestCell.i = nextCell.i;
+      bestCell.j = nextCell.j;
+      bestCell.h_value = 0;
+      ChangeCellState(grid,bestCell.i,bestCell.j,-5);
+      counter++;
     } //end while
   }else{
     printf("\nPath was NOT found");
@@ -480,8 +471,8 @@ void Plan(Cell startCell, Cell goalCell){
   Cell temp;
   for(int i=0; i < counter; i++){
     temp      = Pop(Path);
-    arrayX[i] = temp.i * 25;
-    arrayY[i] = temp.j * 25;
+    arrayX[i] = temp.i * 100;
+    arrayY[i] = temp.j * 100;
   }
   for(int i=0;i < (sizeof(arrayX) / sizeof(arrayX[0])); i++){
     printf("(X: %f, Y: %f) \n",arrayX[i], arrayY[i]);
@@ -494,15 +485,18 @@ void Plan(Cell startCell, Cell goalCell){
 
 int RePlan(Cell startCell, Cell goalCell){
   //printf("\n === RePlan === \n");
-  Posture now     = GlobalPos; // store the global pos
-  now = GetPosture(); // update the 'global' pos.
+  Posture now     = GetPosture();
   Steps prevSteps = GetSteps();
   update_pos(&prevSteps);
   Sensors ir      = GetIR();
   Cell              Revisited_pos, newStart;
   newStart        = startCell;
-  Revisited_pos.i = now.x; //  här, bör jag kolla globalpos.x och globalpos.y? så revisited = global;
-  Revisited_pos.j = now.y; // eftersom revisited är nu lika med now redan.
+  //ChangeCellState(grid, startCell.i,startCell.j,-2);  //unless err_counter is triggered, this removal wont matter.
+  Revisited_pos.i = now.x;
+  Revisited_pos.j = now.y;
+//VAD ATT GÖRA
+//--få in gradberäkningar. översätt th till grader!!!!
+//möjligtvis göra en array, lagra alla tidigare positioner vi varit på.
 
   //update_pos(&prevSteps);
   float currentRot = now.th; //current rotation.
@@ -512,7 +506,6 @@ int RePlan(Cell startCell, Cell goalCell){
   if(currentRot < -0){
     currentRot     = currentRot + 2 * PI;
   }
-
   currentRot       = fmod(currentRot,PI*2);
   currentRot       = DEG(currentRot);
   if(((Revisited_pos.i <= now.x+EXPAND_ERR) && (Revisited_pos.i >= now.x-EXPAND_ERR)) &&
@@ -520,97 +513,94 @@ int RePlan(Cell startCell, Cell goalCell){
       Err_counter++;
       printf("\nErr_count: %d,\tth_: %f",Err_counter,currentRot);
   }
-  //place an obstacle if and only when error counter AND danger is triggered. If for some reason, we stutter, this is a failsafe
-  if((Err_counter >= 4 && ((ir.sensor[5] > FULL_DANGER) || (ir.sensor[2] > FULL_DANGER) || ((ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER))))) {
-    Stop(); // stop roboot momentarily to improve accuracy in placing of obs
-    newStart.i = (int)(now.x/25); //Change to Cell values.
-    newStart.j = (int)(now.y/25); //Scale up
+
+  if(Err_counter >= 4){
+
+    newStart.i = (int)(now.x/100); //Change to Cell values.
+    newStart.j = (int)(now.y/100); //Scale up
     printf("\nERROR FUNC TRIGGERED, Replanning from: %d %d", newStart.i, newStart.j);
     //setting the obs according to robot-rotation in grid
    if(currentRot >= 0 && currentRot <= 45){ //KOLLA PÅ DESSA EN GÅNG TILL!!
       printf("\n0-90");
         if (ir.sensor[5] > FULL_DANGER){ //left
-              if(GetCellState(grid,newStart.i+1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i+1,newStart.j,-3);printf("\n1,1");goto SUCCESS;} //add obs in map
+              if(GetCellState(grid,newStart.i+1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i+1,newStart.j,-3);printf("\n1,1");} //add obs in map
         }
         if (ir.sensor[2] > FULL_DANGER){ //right
-              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n1,2");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n1,2");}
         }
         if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){ //ahead
-              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n1,3");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n1,3");}
         }
     }//klar
     if(currentRot >= 90 && currentRot <= 135){
       printf("\n90-180");
         if (ir.sensor[5] > FULL_DANGER){ //left
-              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n2,1");goto SUCCESS;} //add obs in map
+              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n2,1");} //add obs in map
         }
         if (ir.sensor[2] > FULL_DANGER){ //right
-              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n2,2");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n2,2");}
         }
         if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){ //ahead
-              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n2,3");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n2,3");}
         }
     }//klar
     if(currentRot >= 180 && currentRot <= 240){
       printf("\n180-270");
         if (ir.sensor[5] > FULL_DANGER){ //left
-              if(GetCellState(grid,newStart.i+1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i+1,newStart.j,-3);printf("\n3,1");goto SUCCESS;} //add obs in map
+              if(GetCellState(grid,newStart.i+1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i+1,newStart.j,-3);printf("\n3,1");} //add obs in map
         }
         if (ir.sensor[2] > FULL_DANGER){ //right
-              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n3,2");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n3,2");}
         }
         if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){ //ahead
-              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n3,3");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n3,3");}
         }
     } //klar
     if(currentRot >= 270 && currentRot <= 330){
       printf("\n270-360");
         if (ir.sensor[5] > FULL_DANGER){ //left
-              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n4,1");goto SUCCESS;} //add obs in map
+              if(GetCellState(grid,newStart.i,newStart.j+1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j+1,-3);printf("\n4,1");} //add obs in map
         }
         if (ir.sensor[2] > FULL_DANGER){ //right
-              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n4,2");goto SUCCESS;}
+              if(GetCellState(grid,newStart.i,newStart.j-1) != MAP_BORDER){ChangeCellState(grid,newStart.i,newStart.j-1,-3);printf("\n4,2");}
         }
         if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){ //ahead
-              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n4,3");goto SUCCESS;}
-
+              if(GetCellState(grid,newStart.i-1,newStart.j) != MAP_BORDER){ChangeCellState(grid,newStart.i-1,newStart.j,-3);printf("\n4,3");}
         }
 
     } //klar
 
-    if(currentRot >= 45 && currentRot <= 90){
-      Err_counter--;
-      return 0;
-    }
-    if(currentRot >= 135 && currentRot <= 180){
-      Err_counter--;
-      return 0;
-    }
-    if(currentRot >= 240 && currentRot <= 270){
-      Err_counter--;
-      return 0;
-    }
-    if(currentRot >= 330 && currentRot <= 360){
-      Err_counter--;
-      return 0;
-    }
-    // if(newStart.i ==0){newStart.i = newStart.i+1;} //error-handling for a problem i had before.
-    // if(newStart.j ==0){newStart.j = newStart.j+1;} //if for some reason the robot thinks it's in a 0 pos.
+if(currentRot >= 45 && currentRot <= 90){
+  Err_counter--;
+}
+if(currentRot >= 135 && currentRot <= 180){
+  Err_counter--;
+}
+if(currentRot >= 240 && currentRot <= 270){
+  Err_counter--;
+}
+if(currentRot >= 330 && currentRot <= 360){
+  Err_counter--;
+}
+    if(newStart.i ==0){newStart.i = newStart.i+1;} //error-handling for a problem i had before.
+    if(newStart.j ==0){newStart.j = newStart.j+1;} //if for some reason the robot thinks it's in a 0 pos.
+
+
     //ChangeCellState(grid, newStart.i,newStart.j,-1); //set new start where we are
-    SUCCESS:
-      startCell.i = newStart.i; //convert back
-      startCell.j = newStart.j;
-      goalCell.i  = goalCell.i/25;
-      goalCell.j  = goalCell.j/25;
 
-      //ChangeCellState(grid, goalCell.i,goalCell.j,0); //set new goal where we are going
+    startCell.i = newStart.i; //convert back
+    startCell.j = newStart.j;
+    goalCell.i = goalCell.i/100;
+    goalCell.j = goalCell.j/100;
 
-      Err_counter = 0; //reset err-counter as new map is about to be loaded
-      printf("\n   === NEW UPDATED MAP! ===");
-      PrintMap(grid); //print map and where new start + obstacle is located.
-      printf("\nNEW START: %d,%d, GOAL: %d,%d\n",startCell.i,startCell.j,goalCell.i,goalCell.j);
-      Plan(startCell,goalCell);
-      return 1;
+    //ChangeCellState(grid, goalCell.i,goalCell.j,0); //set new goal where we are going
+
+    Err_counter = 0; //reset err-counter as new map is about to be loaded
+    printf("\n   === NEW UPDATED MAP! ===");
+    PrintMap(grid); //print map and where new start + obstacle is located.
+    printf("\nNEW START: %d,%d, GOAL: %d,%d\n",startCell.i,startCell.j,goalCell.i,goalCell.j);
+    Plan(startCell,goalCell);
+    return 1;
   }
   return 0;
 }
@@ -638,14 +628,13 @@ double vel,rot;
 int i;
   printf             ("Starting...\n");
   Cell               goalCell,startCell,Wall;
-  goalCell.i       = 10;
-  goalCell.j       = 11;
+  goalCell.i       = 5;
+  goalCell.j       = 5;
   ChangeCellState(grid,goalCell.i,goalCell.j,0);
-  startCell.i      = 5;
-  startCell.j      = 11;
+  startCell.i      = 2;
+  startCell.j      = 5;
   ChangeCellState(grid,startCell.i,startCell.j,-1);
 
-  SetGlobalPos(startCell.i*25,startCell.j*25);
   //menu(startCell,goalCell);
   PrintMap(grid);
   Plan(startCell,goalCell);
