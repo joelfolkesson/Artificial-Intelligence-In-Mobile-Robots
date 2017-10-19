@@ -832,6 +832,12 @@ void MapToSymbol(int num, char* str)
     case MAP_START:
       strcpy(str,MAP2SYM_START);
       break;
+    case MAP_CUSTOM:
+      strcpy(str,MAP2SYM_CUSTOM);
+      break;
+      case MAP_CUSTOMPATH:
+        strcpy(str,MAP2SYM_CUSTOMPATH);
+        break;
     case MAP_OBSTACLE:
       strcpy(str,MAP2SYM_OBSTACLE);
       break;
@@ -859,6 +865,8 @@ int SymbolToMap(char* str)
   {
     case SYM2MAP_GOAL:
       return MAP_GOAL;
+    case SYM2MAP_CUSTOM:
+      return MAP_CUSTOM;
     case SYM2MAP_START:
       return MAP_START;
     case SYM2MAP_OBSTACLE:
