@@ -43,7 +43,7 @@
 #define DEFAULT_GRAD_LENGTH 512
 //@}
 
-/** 
+/**
  *    @name  Values in grid (and .map file)
  */
  //@{
@@ -53,6 +53,8 @@
 #define MAP_OBSTACLE -3
 #define MAP_BORDER   -4
 #define MAP_ERROR    -5
+#define MAP_CUSTOM   -8
+#define MAP_CUSTOMPATH -9
 //@}
 
 
@@ -60,6 +62,8 @@
  *    @name (Map file stuff) Symbol file conversions
  */
  //@{
+#define SYM2MAP_CUSTOM   '!'
+#define SYM2MAP_CUSTOMPATH '●'
 #define SYM2MAP_GOAL     'G'
 #define SYM2MAP_START    'S'
 #define SYM2MAP_OBSTACLE '#'
@@ -73,6 +77,9 @@
 #define MAP2SYM_BORDER   "@@@"
 #define MAP2SYM_ERROR    "???"
 #define MAP2SYM_UNKNOWN  "   "
+#define MAP2SYM_CUSTOM   " ! "
+#define MAP2SYM_CUSTOMPATH " ● "
+
 ///@}
 
 
@@ -184,7 +191,7 @@
 typedef struct
 {
 	int i;
-	int j; 
+	int j;
 }Coordinates;
 
 /*!@brief pixel in image file */
