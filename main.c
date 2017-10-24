@@ -18,6 +18,7 @@
 int rWheelGlobal = 0;
 int lWheelGlobal = 0;
 Posture GlobalPos = GetPosture();
+
 void SetGlobalPos(int x, int y, float th){
   GlobalPos.x  = x;
   GlobalPos.y  = y;
@@ -43,10 +44,6 @@ void UpdatePos    (Steps *prev){
     float y         = p.y + (dx * sin(p.th)) + (dy * cos(p.th));
     float th        = p.th + delta;
           th        = fmod(th,PI*2);
-
-
-//    printf            ("\nUpdatePos p.x = %.4f, p.y = %.4f, p.th = %.4f DEG \n",p.x,p.y,DEG(th));
-    //printf            ("\nDistance = %f\n",dist);
     //*prev           = GetSteps();
     SetPosture        (x,y,th);
     p               = GetPosture();
@@ -124,32 +121,21 @@ void FuzzyAvoid(){
 	Sensors ir = GetIR();
 	FPred Obs_Left,Obs_Right,Obs_Ahead, DANGER;
   /* Force Rules */
-  if (ir.sensor[5] > FULL_DANGER){
-    DANGER = 1;
-  }
-  if (ir.sensor[2] > FULL_DANGER){
-    DANGER = 1;
-  }
-  if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){
-    DANGER = 1;
-  }
+  if (ir.sensor[5] > FULL_DANGER){                               DANGER = 1;}
+  if (ir.sensor[2] > FULL_DANGER){                               DANGER = 1;}
+  if (ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER){ DANGER = 1;}
   DANGER    = RampUp(MIN(ir.sensor[5],ir.sensor[6]),NO_DANGER,FULL_DANGER);
-	Obs_Left  = RampUp(MIN(ir.sensor[5],ir.sensor[6]),NO_DANGER,FULL_DANGER);
-	Obs_Ahead = RampUp(MIN(ir.sensor[0],ir.sensor[7]),NO_DANGER,FULL_DANGER);
+  Obs_Left  = RampUp(MIN(ir.sensor[5],ir.sensor[6]),NO_DANGER,FULL_DANGER);
+  Obs_Ahead = RampUp(MIN(ir.sensor[0],ir.sensor[7]),NO_DANGER,FULL_DANGER);
   Obs_Right = RampUp(MIN(ir.sensor[1],ir.sensor[2]),NO_DANGER,FULL_DANGER);
 
-
-	//printf("\nLeft: %f,\t Right: %f,\t Ahead: %f", Obs_Left, Obs_Right, Obs_Ahead);
-	//printf("\n %d, %d, %d, %d, %d, %d, %d, %d",ir.sensor[0],ir.sensor[1],ir.sensor[2],ir.sensor[3],ir.sensor[4],ir.sensor[5],ir.sensor[6],ir.sensor[7]);
-
 	RULESET;
-	IF (AND(Obs_Left,  NOT(Obs_Right)));               ROT(RIGHT);
-  /*IF (AND(Obs_Ahead,(Obs_Left,Obs_Right)));            VEL(BACK);*/
-	IF (AND(Obs_Right, NOT(Obs_Left)));                ROT(LEFT);
-	IF (AND(Obs_Right, Obs_Left));                     ROT(AHEAD);
-  IF (Obs_Ahead);                                   VEL(BACK);
+	IF (AND(Obs_Left,  NOT(Obs_Right)));                 ROT(RIGHT);
+	IF (AND(Obs_Right, NOT(Obs_Left)));                  ROT(LEFT);
+	IF (AND(Obs_Right, Obs_Left));                       ROT(AHEAD);
+  IF (Obs_Ahead);                                      VEL(BACK);
 	IF (AND((OR(Obs_Right, Obs_Left)), NOT(Obs_Ahead))); VEL(SLOW);
-	IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));   VEL(FAST);
+	IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));     VEL(FAST);
 	RULEEND;
 }
 
@@ -415,7 +401,7 @@ void Plan(Cell startCell, Cell goalCell){
   double arrayX[counter];
   double arrayY[counter];
   Cell temp;
-  for(int i=0; i < counter; i++){                 
+  for(int i=0; i < counter; i++){
     temp      = Pop(Path);
     arrayX[i] = temp.i * CELLSIZE;
     arrayY[i] = temp.j * CELLSIZE;
