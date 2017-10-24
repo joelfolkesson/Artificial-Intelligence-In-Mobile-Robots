@@ -53,15 +53,15 @@ void UpdatePos    (Steps *prev){
 int GoTo2(Steps *prevSteps, Posture *goal){
 
 	float dx_dist       ,
-				dy_dist       ,
-				th_dist       ,
-				th_err        ,
-				vl, vr        ,
-				p_vel, p_th   ,
-				pos_err       ,
+	      dy_dist       ,
+	      th_dist       ,
+	      th_err        ,
+	      vl, vr        ,
+	      p_vel, p_th   ,
+	      pos_err       ,
 	      kpos      = 1 ,
-				kth       = -3,
-				delta_pos = 25;
+	      kth       = -3,
+	      delta_pos = 25;
   FPred Pos_Left, Pos_Right, Pos_Ahead, Pos_Here, DANGER, Obs_Left,Obs_Right,Obs_Ahead;
 	Posture currentPos = GetPosture();
 	dx_dist     = goal->x - currentPos.x;
@@ -79,7 +79,7 @@ int GoTo2(Steps *prevSteps, Posture *goal){
 	Pos_Left    = RampUp(th_err, 0, 60);
 	Pos_Right   = RampDown(th_err, -60, 0);
 	Pos_Ahead   = MIN(RampUp(th_err, -30, 0),
-							  RampDown(th_err, 0, 30));
+	      	      RampDown(th_err, 0, 30));
 	Pos_Here    = RampDown(pos_err, 10, 50); //default 10,50
 
 
