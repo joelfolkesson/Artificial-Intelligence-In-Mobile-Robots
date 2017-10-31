@@ -37,7 +37,7 @@ void UpdatePos     (){
 	float lWheelDist= ((float)s.l - (float)lWheelGlobal) * 0.129; 							 // -||-
 	float delta     = (((float)s.r * 0.129) - ((float)s.l * 0.129)) /52.5; //moved dist unit
 	float dist      = ((rWheelDist + lWheelDist ) / 2.0); 								 //travelled dist
-	//ClearSteps();
+	ClearSteps();
 	float dx        = dist * (cos(delta/2.0)); 														 //displacement x
 	float dy        = dist * (sin(delta/2.0));														 //displacement y
 	Posture p       = GetPosture(); 														 					 //get the current readings of robot pos
