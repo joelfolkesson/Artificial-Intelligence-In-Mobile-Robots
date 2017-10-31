@@ -9,8 +9,8 @@
 #define FORCE_FULL_DANGER 700
 #define EXPAND_ERR 0.35
 #define CELLSIZE 25
-
-
+// strange error.
+//*** Error in `./real': free(): invalid next size (fast): 0x00000000017eee70 ***
 //==============================================================================//
 //                                FINAL EXAM                                    //
 //==============================================================================//
