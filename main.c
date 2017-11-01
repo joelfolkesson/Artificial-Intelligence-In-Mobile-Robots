@@ -1,11 +1,11 @@
 #include "interface.h"
 #include <math.h>
 #define ROBOT_NUMBER "7"
-#define V_MAX 80
-#define V_MIN 30
-#define MM_PER_PULSE 0.129
+#define V_MAX 90
+#define V_MIN 40
+#define MM_PER_PULSE 0.135
 #define NO_DANGER 400
-#define FULL_DANGER 800
+#define FULL_DANGER 600
 #define FORCE_FULL_DANGER 700
 #define EXPAND_ERR 0.35
 #define CELLSIZE 25
@@ -14,40 +14,45 @@
 //==============================================================================//
 //                                FINAL EXAM                                    //
 //==============================================================================//
-
-int rWheelGlobal = 0;
-int lWheelGlobal = 0;
+char mapname[50]  = "../real_robot/src/SampleMaps/empty.txt";
+Map* grid         = CreateMapFromFile(0,mapname);
+int rWheelGlobal  = 0;
+int lWheelGlobal  = 0;
 Posture GlobalPos = GetPosture();
-Cell GlobalGoalCell;
+Cell                GlobalGoalCell;
 
 void SetGlobalPos(int x, int y, float th){
-  GlobalPos.x  = x;
-  GlobalPos.y  = y;
-  GlobalPos.th = th;
+  GlobalPos.x     = x;
+  GlobalPos.y     = y;
+  GlobalPos.th    = th;
   SetPosture(GlobalPos.x,GlobalPos.y,GlobalPos.th);
-  printf("GLOBAL TH: %f",GlobalPos.th);
 }
 
-void UpdatePos    (){
-    Steps s         = GetSteps();
-    int rWheelDist  = (s.r - rWheelGlobal);
-    int lWheelDist  = (s.l - lWheelGlobal);
-    rWheelGlobal    = s.r; //setting global
-    lWheelGlobal    = s.l;
-    float dRight    = rWheelDist * MM_PER_PULSE;
-    float dLeft     = lWheelDist * MM_PER_PULSE;
-    float delta     = (dRight - dLeft) / ROBOT_DIAMETER;
-    float dist      = ((dRight + dLeft ) / 2.0);
-    float dx        = dist * (cos(delta/2.0));
-    float dy        = dist * (sin(delta/2.0));
-    Posture p       = GetPosture();
-    float x         = p.x + (dx * cos(p.th)) - (dy * sin(p.th));
-    float y         = p.y + (dx * sin(p.th)) + (dy * cos(p.th));
-    float th        = p.th + delta;
-          th        = fmod(th,PI*2);
-    //*prev           = GetSteps();
-    SetPosture        (x,y,th);
-    p               = GetPosture();
+void UpdatePos     (){
+  Posture pos;
+	Steps s         = GetSteps();
+  float distLeft  = s.l - lWheelGlobal;
+  float distRight = s.r - rWheelGlobal;
+
+  rWheelGlobal    = s.r;
+  lWheelGlobal    = s.l;
+
+  float lWheelDist= distLeft*MM_PER_PULSE;
+  float rWheelDist= distRight*MM_PER_PULSE;
+
+  float dist      = (lWheelDist + rWheelDist)/2;
+  float delta     = (rWheelDist - lWheelDist)/ROBOT_DIAMETER;
+  float dx        = dist* cos(delta/2);
+  float dy        = dist* sin(delta/2);
+
+  pos             = GetPosture();
+
+  pos.x           = pos.x + dx*cos(pos.th) - dy*sin(pos.th);
+  pos.y           = pos.y + dx*sin(pos.th) + dy*cos(pos.th);
+  pos.th          = pos.th + delta;
+  float th        = pos.th;
+        th        = fmodf(th,2*PI);
+  SetPosture((float)pos.x, (float)pos.y,(float)pos.th);
 }
 
 int GoTo2(Posture goal){
@@ -63,7 +68,10 @@ int GoTo2(Posture goal){
 	      kth       = -3,
 	      delta_pos = 35;
   FPred Pos_Left, Pos_Right, Pos_Ahead, Pos_Here, DANGER, Obs_Left,Obs_Right,Obs_Ahead;
-	Posture currentPos = GetPosture();
+	Posture currentPos;
+
+
+  currentPos  = GetPosture();
 	dx_dist     = goal.x - currentPos.x;
 	dy_dist     = goal.y - currentPos.y;
 	pos_err     = sqrt(pow((dx_dist),2) + pow((dy_dist),2));
@@ -75,79 +83,61 @@ int GoTo2(Posture goal){
 	if(th_err < -PI){
 		th_err    = th_err + 2 * PI;
 	}
+
 	th_err      = DEG(th_err);
-	// Pos_Left    = RampUp(th_err, 0, 60);
-	// Pos_Right   = RampDown(th_err, -60, 0);
-	// Pos_Ahead   = min(RampUp(th_err, -30, 0),
-	//       	      RampDown(th_err, 0, 30));
-	// Pos_Here    = RampDown(pos_err, 20, 50); //default 10,50
-
   Sensors ir  = GetIR();
-  Pos_Left = RampUp(th_err, 0, 60);
-  Pos_Right = RampDown(th_err, -60, 0);
-  Pos_Ahead = min(RampUp(th_err, -30, 0), RampDown(th_err, 0, 30));
-  Pos_Here = RampDown(pos_err, 40, 50);
-
+  Pos_Left    = RampUp(th_err, 0, 60);
+  Pos_Right   = RampDown(th_err, -60, 0);
+  Pos_Ahead   = min(RampUp(th_err, -30, 0), RampDown(th_err, 0, 30));
+  Pos_Here    = RampDown(pos_err, 20, 50); //def 10,50
 
   Obs_Left    = RampUp(min(ir.sensor[5],ir.sensor[6]),NO_DANGER,FULL_DANGER);
   Obs_Ahead   = RampUp(min(ir.sensor[0],ir.sensor[7]),NO_DANGER,FULL_DANGER);
-  Obs_Right   = RampUp(min(ir.sensor[1],ir.sensor[2]),NO_DANGER,FULL_DANGER);
-  DANGER      = RampUp(max(max(Obs_Left, Obs_Right), Obs_Ahead),0.5,0.8);	// To amplify which rule of GoTo and Avoidence, in the ruleset, dominates the robots movements.
+  Obs_Right   = RampUp(min(ir.sensor[1],((ir.sensor[2]))),NO_DANGER,FULL_DANGER);
+  DANGER      = max(max(Obs_Left, Obs_Right), Obs_Ahead);
 
-  //printf("\nIR: L:%d R:%d F:%d %d", ir.sensor[5],ir.sensor[2],ir.sensor[0],ir.sensor[7]);
-  //printf("\n%f %f %f %f\n",Obs_Left,Obs_Right,Obs_Ahead, DANGER);
-
-
-  // Third part: the rules //
 
   RULESET;
-  //no danger
-  IF (AND(NOT(DANGER), AND(Pos_Left, NOT(Pos_Here)))); 			  ROT(LEFT);
-  IF (AND(NOT(DANGER), AND(Pos_Right, NOT(Pos_Here)))); 			ROT(RIGHT);
-  IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			ROT(AHEAD);
-  IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			VEL(FAST);
-  IF (OR(Pos_Here, NOT(Pos_Ahead)));		 			                VEL(NONE);
+    //no danger
+    IF (AND(NOT(DANGER), AND(Pos_Left, NOT(Pos_Here)))); 			     ROT(LEFT);
+    IF (AND(NOT(DANGER), AND(Pos_Right, NOT(Pos_Here)))); 			   ROT(RIGHT);
+    IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			   ROT(AHEAD);
+    IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			   VEL(FAST);
+    IF (OR(Pos_Here, NOT(Pos_Ahead)));		 			                   VEL(NONE);
 
     //danger
-  IF (AND(DANGER, AND(Obs_Right, NOT(Obs_Left)))); 			      ROT(LEFT);
-  IF (AND(DANGER, AND(Obs_Left, NOT(Obs_Right)))); 			      ROT(RIGHT);
-  IF (AND(DANGER, AND(Obs_Right, Obs_Left))); 				        ROT(AHEAD);
-//  IF (AND(DANGER, AND(Obs_Ahead, NOT(Obs_Left))));            ROT(LEFT);
+    IF (AND(DANGER, AND(Obs_Right, NOT(Obs_Left)))); 			         ROT(LEFT);
+    IF (AND(DANGER, AND(Obs_Left, NOT(Obs_Right)))); 			         ROT(RIGHT);
+    IF (AND(DANGER, AND(Obs_Right, Obs_Left))); 				           ROT(AHEAD);
 
-  IF (AND(DANGER, AND(AND(Obs_Ahead, Obs_Left), Obs_Right)));		     VEL(BACK);
-  IF (AND(DANGER, (OR(Obs_Right, Obs_Left), NOT(Obs_Ahead)))); 		   VEL(SLOW);
-  IF (NOT(OR(DANGER, (OR(OR(Obs_Right,Obs_Left), Obs_Ahead))))); 		 VEL(FAST);
-
+    IF (AND(DANGER, AND(AND(Obs_Ahead, Obs_Left), Obs_Right)));		 VEL(BACK);
+    IF (AND(DANGER, (OR(Obs_Right, Obs_Left), NOT(Obs_Ahead)))); 	 VEL(SLOW);
+    IF (NOT(OR(DANGER, (OR(OR(Obs_Right,Obs_Left), Obs_Ahead))))); VEL(FAST);
 
 
-  IF (AND(Obs_Left,  NOT(Obs_Right)));                 ROT(RIGHT);
-  IF (AND(Obs_Right, NOT(Obs_Left)));                  ROT(LEFT);
-  IF (AND(Obs_Right, Obs_Left));                       ROT(AHEAD);
-  IF (Obs_Ahead);                                      VEL(RIGHT);
-  IF (AND((OR(Obs_Right, Obs_Left)), NOT(Obs_Ahead))); VEL(SLOW);
-  IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));     VEL(FAST);
-  RULEEND;
-	if(Pos_Here == 1){
+
+    IF (AND(Obs_Left,  NOT(Obs_Right)));                           ROT(RIGHT);
+    IF (AND(Obs_Right, NOT(Obs_Left)));                            ROT(LEFT);
+    IF (AND(Obs_Right, Obs_Left));                                 ROT(AHEAD);
+    IF (Obs_Ahead);                                                VEL(RIGHT);
+    IF (AND((OR(Obs_Right, Obs_Left)), NOT(Obs_Ahead)));           VEL(SLOW);
+    IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));               VEL(FAST);
+    RULEEND;
+	if(pos_err < delta_pos){ //Acceptable to look for next node within this range (could use Pos_Here == 1)
 		return 1;
   }
 	return 0;
 }
 
 double ResponseToVel (double response){
-    //    printf("\nresponse VEL: %f", response);
-    return (V_MIN + response *(V_MAX-V_MIN));
-  }
+  return (V_MIN + response *(V_MAX-V_MIN));
+}
 
 double ResponseToRot (double response){
-  //printf("\nresponse rot: %f", response);
   return (PI - response * (2 * PI));
 }
 
-char mapname[50] = "../real_robot/src/SampleMaps/empty.txt";
-Map* grid        = CreateMapFromFile(0,mapname);
-
-
-int RePlan(Cell startCell,Cell goalCell); //constructor
+int RePlan(Cell goalCell); //constructor
 void MarkCell(int i, int j, List frontier[], int value){
   Cell               explore;
   explore.i        = i;
@@ -213,14 +203,14 @@ void PaddBorder(int i, int j){
 }
 void addPaddingObstacles(){
       //add padding around obstacles to avoid disruption of robots-path.
-      int h = grid->height-1;
-      int w = grid->width-1;
-      for(int i=0;i<h;i++){
-        for(int j=0;j<w;j++){
-          int check = GetCellState(grid,i,j);
+      int h                  = grid->height-1;
+      int w                  = grid->width-1;
+      for(int i = 0; i < h; i++){
+        for(int j = 0; j < w; j++){
+          int check          = GetCellState(grid,i,j);
           if(check == -3){
-            for(int a = -2; a<=2;a++){
-              for(int b= -2; b<=2;b++){
+            for(int a = -1; a<=1;a++){
+              for(int b=-1; b<=1;b++){
                 PaddObs(i+a,j+b);
               }
             }
@@ -230,11 +220,11 @@ void addPaddingObstacles(){
 }
 void addPaddingBorderTop(){
       //add padding around border to avoid disruption of robots-path.
-  int h = grid->height-3;
-  int w = grid->width-3;
-  for(int i=0;i<h;i++){
-    for(int j=0;j<w;j++){
-      int check = GetCellState(grid,i,j);
+  int h                 = grid->height-3;
+  int w                 = grid->width-3;
+  for(int i = h; i > 2; i--){
+    for(int j = w; j > 2 ; j--){
+      int check         = GetCellState(grid,i,j);
       if(check == -4){
         for(int a = 1; a<=2;a++){
           for(int b=1; b<=2;b++){
@@ -247,11 +237,11 @@ void addPaddingBorderTop(){
 }
 void addPaddingBorderBot(){
   //add padding around border to avoid disruption of robots-path.
-  int h = grid->height-1;
-  int w = grid->width-1;
-  for(int i=h;i>2;i--){
-    for(int j=w;j>2;j--){
-      int check = GetCellState(grid,i,j);
+  int h                 = grid->height-1;
+  int w                 = grid->width-1;
+  for(int i = h; i > 2; i--){
+    for(int j = w; j > 2 ; j--){
+      int check         = GetCellState(grid,i,j);
       if(check == -4){
         for(int a = 1; a<=2;a++){
           for(int b=1; b<=2;b++){
@@ -283,40 +273,34 @@ bool Search(Cell goalCell){
     return false;
 }
 void FuzzyPlanSearch(double arrayX[], double arrayY[], int counter){
-  double x,y,th,vel,rot;
-  x = 0; y = 0; th= 0;
-  Posture goal;
+  double            vel,
+                    rot,
+      x           = 0,
+      y           = 0,
+      th          = 0;
   int condition   = 0,
       count       = 0;
-  Steps prevSteps = GetSteps();
+  Posture goal    = GetPosture();
   Cell              storeNewStart,storeGoal;
-
-  size_t arrsizeX = sizeof(arrayX)/sizeof(arrayX[0]); //storing last-goal so i can use it in replan
-  size_t arrsizeY = sizeof(arrayY)/sizeof(arrayY[0]);
-  for(int i=0;i < arrsizeX;++i){
+  size_t arrsize  = (sizeof(arrayX)/sizeof(arrayY[0])); //storing last-goal so i can use it in replan
+  for(int i=0;i < arrsize;++i){
     storeGoal.i   = arrayX[i];
-  }
-  for(int i=0;i < arrsizeY;++i){
     storeGoal.j   = arrayY[i];
-  }
 
-  SetPosture(arrayX[counter],arrayY[counter],th);     //set startpos
-  for(int i=counter-1; i>=0; i--){                    //start from the last pos in array(start) -> goto -> goal
-    condition=0;                                      //set to 0 each time.
+  }
+  SetPosture(arrayX[counter],arrayY[counter],goal.th);  //set startpos
+  for(int i=counter-1; i>=0; i--){                      //start from the last pos in array(start) -> goto -> goal
+    condition=0;                                        //set to 0 each time.
   //  printf("\nNodes Until Goal = %d,SizeOf Arr=%d\n",i,counter);
     goal.x        = arrayX[i];
     goal.y        = arrayY[i];
-    goal.th       = 0;
-    Cell TempGoal;
-    TempGoal.i = goal.x;
-    TempGoal.j = goal.y;
-    Sensors ir;
-    printf("\n=== Moving Towards: (%f,%f) === \n",goal.x,goal.y);                                 //reset err counter.
+    printf("\n=== Moving Towards: (%f,%f) === \n",goal.x,goal.y);
     do{
         UpdatePos         ();
         ClearFSet         (f_set_vlin);
         ClearFSet         (f_set_vrot);
         Posture now     = GetPosture();
+        SetGlobalPos      (now.x,now.y,now.th);
         storeNewStart.i = (int)now.x/CELLSIZE;
         storeNewStart.j = (int)now.y/CELLSIZE;
         condition       = GoTo2(goal);
@@ -324,22 +308,22 @@ void FuzzyPlanSearch(double arrayX[], double arrayY[], int counter){
         DeFuzzify         (f_set_vlin, 4, &vel);
         f_vlin          = ResponseToVel(vel);
         f_vrot          = ResponseToRot(rot);
-    //    printf("\n\nf_vrot: %f v_lin %f\n\n",f_vrot, f_vlin);
         SetPolarSpeed     (f_vlin,f_vrot);
-        RePlan            (storeNewStart,storeGoal);
+        RePlan            (storeGoal);
         Sleep(50);
-    }while(condition != 1);
+    }while(condition != 1 && storeNewStart.i != storeGoal.i && storeNewStart.j != storeGoal.j); //enhanced check.
   }
   Stop();
 }
 
 void Plan(Cell startCell, Cell goalCell){
   ClearMap             (grid);                         //for replanning purposes
-  ChangeCellState      (grid,startCell.i,startCell.j,-1);
-  ChangeCellState      (grid,goalCell.i,goalCell.j,0);
   addPaddingObstacles  ();                             //add padding to obstacles
   addPaddingBorderTop  ();                             //add padding to grid-border
   addPaddingBorderBot  ();                             // -||-
+  ChangeCellState      (grid,startCell.i,startCell.j,-1);
+  ChangeCellState      (grid,goalCell.i,goalCell.j,0);
+
   int maxValue       = 0,
       counter        = 1,
       n1,n2,n3,n4       ;                              //neighbours
@@ -353,7 +337,6 @@ void Plan(Cell startCell, Cell goalCell){
     maxValue         = GetMaxValue(grid);              //assigning max-value
     bestCell.i       = startCell.i;
     bestCell.j       = startCell.j;
-
 
     while(maxValue  != MAP_GOAL){                      //while we are not at the goal
       n1             = GetCellState(grid,bestCell.i,bestCell.j-1);
@@ -390,6 +373,7 @@ void Plan(Cell startCell, Cell goalCell){
 
     }                                                   //end while
   }else{
+    PrintMap(grid);
     printf("\nPath was NOT found, terminating...");
     exit(1);
   }                                                    // end if-else
@@ -398,36 +382,55 @@ void Plan(Cell startCell, Cell goalCell){
   //expanding the cells
   double arrayX[counter];
   double arrayY[counter];
-  Cell temp;
-  for(int i=0; i < counter; i++){
+  Cell   temp;
+  for(int i=0; i < counter; i++){ //populating arrays
     temp      = Pop(Path);
-    arrayX[i] = temp.i * CELLSIZE;
+    arrayX[i] = temp.i * CELLSIZE; //scale up
     arrayY[i] = temp.j * CELLSIZE;
   }
 
-  for(int i=0;i < (sizeof(arrayX) / sizeof(arrayX[0])); i++){
-//    printf("(X: %f, Y: %f) \n",arrayX[i], arrayY[i]);
+  //reducing arrays, i'm so happy with this method of doing it. It took me ages to accomplish. (and lots of abandoned attempts)
+  int n = counter;                 //storing previous counter
+  int z = 0;                       // new Counter
+  for (int i = 0; i < n; i++) {
+    if (i == n - 1 || z == 0 || (arrayX[i] != arrayX[i + 1] || arrayX[i] != arrayX[z - 1]) && (arrayY[i] != arrayY[i + 1] || arrayY[i] != arrayY[z - 1])) {
+                                   //checking turns on a node, if infront and behind us is the same, if it is, move current node in the array.
+                                   //z = 0, means goal, we want to keep that.
+                                   //i = n-1 means start, we want to keep that.
+      arrayX[z] = arrayX[i];
+      arrayY[z] = arrayY[i];
+      z++;
+    }
+  }
+  double newArrayX[z];  //create new arrays to store the final result in based on new counter for new result.
+  double newArrayY[z];
+  for(int i=0; i< z; i++){
+    newArrayX[i] = arrayX[i];
+    newArrayY[i] = arrayY[i];
+  }
+  for(int i=0;i < (sizeof(newArrayX) / sizeof(newArrayX[0])); i++){ //array list
+    printf("(X: %f, Y: %f) \n",newArrayX[i], newArrayY[i]);
   }
 
+
+
   PrintMap(grid);
-  FuzzyPlanSearch(arrayX,arrayY,counter-1);
+  FuzzyPlanSearch(newArrayX,newArrayY,z-1); //sending along the formatted array-path with the new counter.
 }
 
-int PlaceObs(Cell startCell,Cell goalCell){
-     Posture now      = GlobalPos; // store the global pos
-     now              = GetPosture(); // update the 'global' pos.
+int PlaceObs(Cell goalCell){
+     Posture now      = GlobalPos;                               // store the global pos
+     now              = GetPosture();                            // update the 'global' pos.
      Sensors ir       = GetIR();
-     Cell               Revisited_pos, newStart;
-     newStart         = startCell;
-     float currentRot = now.th; //current rotation.
+     Cell               newStart;
+     float currentRot = now.th;                                  //current rotation.
      if(currentRot >  0){currentRot     = currentRot - 2 * PI;}
      if(currentRot < -0){currentRot     = currentRot + 2 * PI;}
      currentRot       = fmod(currentRot,PI*2);
      currentRot       = DEG(currentRot);
-    // Stop(); // stop robot momentarily to improve accuracy in placing of obs
-     newStart.i       = (int)(now.x/CELLSIZE); //Change to Cell values.
-     newStart.j       = (int)(now.y/CELLSIZE); //Scale down
-     printf("\nReplanning from: %d %d", newStart.i, newStart.j);
+     newStart.i       = (int)(now.x/CELLSIZE);                   //Change to Cell values.
+     newStart.j       = (int)(now.y/CELLSIZE);                   //Scale down
+
      //setting the obs according to robot-rotation in grid
     if(currentRot >= 0 && currentRot <= 45){
         printf("\n0-45");
@@ -494,52 +497,43 @@ int PlaceObs(Cell startCell,Cell goalCell){
     } //klar
 
     //convert back to cells
+    goalCell.i  = goalCell.i/CELLSIZE;
+    goalCell.j  = goalCell.j/CELLSIZE;
+    Plan(newStart,goalCell);
 
-      startCell.i = newStart.i;
-      startCell.j = newStart.j;
-      goalCell.i  = goalCell.i/CELLSIZE;
-      goalCell.j  = goalCell.j/CELLSIZE;
-    Plan(startCell,goalCell);
-    return 1;
 }
 
-int CheckErr(Cell startCell,Cell goalCell){
-  Posture now     = GlobalPos; // store the global pos
-  now             = GetPosture(); // update the 'global' pos.
-  Cell              Revisited_pos;
-  Sensors ir      = GetIR();
-  Revisited_pos.i = now.x;
-  Revisited_pos.j = now.y;
-  float currentRot = now.th; //current rotation.
-  if(currentRot >  0){ currentRot     = currentRot - 2 * PI;} //normalize
-  if(currentRot < -0){ currentRot     = currentRot + 2 * PI;} //normalize
-  currentRot       = fmod(currentRot,PI*2);
-  currentRot       = DEG(currentRot);
+int CheckErr(Cell goalCell){
+  Sensors ir = GetIR();
   if((((ir.sensor[5] > FULL_DANGER) || (ir.sensor[2] > FULL_DANGER) || ((ir.sensor[0] > FULL_DANGER || ir.sensor[7] > FULL_DANGER))))){
-      if(PlaceObs(startCell,goalCell) == 1){ //if placing of obs went OK.
+        PlaceObs(goalCell);
         printf("\n\nPLACEOBS COMPLETE!\n\n");
         return 1;
     }
-  }
   return 0;
 }
 
-int RePlan(Cell startCell, Cell goalCell){
-  Steps prevSteps = GetSteps();
-  UpdatePos         ();
-  if(CheckErr       (startCell,goalCell) == 1){ //checking for errors.
+int RePlan(Cell goalCell){
+  UpdatePos();
+  if(CheckErr       (goalCell) == 1){ //checking for errors.
     printf          ("\n  \t\t\t\t === NEW UPDATED MAP! ===");
     goalCell.i    = goalCell.i/CELLSIZE; //convert to cells
     goalCell.j    = goalCell.j/CELLSIZE;
+    Posture now = GetPosture();
+    now.x /= (int)CELLSIZE;
+    now.y /= (int)CELLSIZE;
     PrintMap        (grid);
-    printf          ("\nNEW START: %d,%d, GOAL: %d,%d\n",startCell.i,startCell.j,goalCell.i,goalCell.j);
+    printf          ("\nNEW START: %f,%f, GOAL: %d,%d\n",now.x,now.y,goalCell.i,goalCell.j);
     if(goalCell.i == GlobalGoalCell.i && goalCell.j == GlobalGoalCell.j ){
-      printf("WE'VE REACHED THE FINAL GOAL!");
+      GlobalPos = GetPosture();
+      printf("Global: x:%f y:%f th:%f\n",GlobalPos.x,GlobalPos.y,DEG(GlobalPos.th));
+      printf("WE'VE REACHED THE FINAL GOAL!\n");
       Stop();
       exit(1);
     }
     return 1;
   }
+  return 0;
 }
 
 Cell menu(Cell *startCell,Cell *goalCell){
@@ -561,7 +555,7 @@ Cell menu(Cell *startCell,Cell *goalCell){
 int main(int argc, char *argv[]){
   epuck(ROBOT_NUMBER);
   Posture GlobalPos = GetPosture();
-  int i, cellSize,choice;
+  int                 i, cellSize,choice;
 
   do{
     printf             ("Starting...\n");
