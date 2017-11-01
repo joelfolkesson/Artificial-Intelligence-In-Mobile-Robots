@@ -28,9 +28,9 @@ void SetGlobalPos(int x, int y, float th){
   SetPosture(GlobalPos.x,GlobalPos.y,GlobalPos.th);
 }
 
-void UpdatePos     (){
+void UpdatePos(){
   Posture pos;
-	Steps s         = GetSteps();
+	Steps s   = GetSteps();
   float distLeft  = s.l - lWheelGlobal;
   float distRight = s.r - rWheelGlobal;
 
@@ -68,23 +68,23 @@ int GoTo2(Posture goal){
 	      kth       = -3,
 	      delta_pos = 35;
   FPred Pos_Left, Pos_Right, Pos_Ahead, Pos_Here, DANGER, Obs_Left,Obs_Right,Obs_Ahead;
-	Posture currentPos;
+  Posture currentPos;
 
 
   currentPos  = GetPosture();
-	dx_dist     = goal.x - currentPos.x;
-	dy_dist     = goal.y - currentPos.y;
-	pos_err     = sqrt(pow((dx_dist),2) + pow((dy_dist),2));
-	th_err      = atan2(dy_dist,dx_dist) - currentPos.th;
+  dx_dist     = goal.x - currentPos.x;
+  dy_dist     = goal.y - currentPos.y;
+  pos_err     = sqrt(pow((dx_dist),2) + pow((dy_dist),2));
+  th_err      = atan2(dy_dist,dx_dist) - currentPos.th;
 
-	if(th_err > PI){
-		th_err    = th_err - 2 * PI;
-	}
-	if(th_err < -PI){
-		th_err    = th_err + 2 * PI;
-	}
+  if(th_err > PI){
+    th_err    = th_err - 2 * PI;
+  }
+  if(th_err < -PI){
+    th_err    = th_err + 2 * PI;
+  }
 
-	th_err      = DEG(th_err);
+  th_err      = DEG(th_err);
   Sensors ir  = GetIR();
   Pos_Left    = RampUp(th_err, 0, 60);
   Pos_Right   = RampDown(th_err, -60, 0);
@@ -99,34 +99,34 @@ int GoTo2(Posture goal){
 
   RULESET;
     //no danger
-    IF (AND(NOT(DANGER), AND(Pos_Left, NOT(Pos_Here)))); 			     ROT(LEFT);
+    IF (AND(NOT(DANGER), AND(Pos_Left, NOT(Pos_Here)))); 			   ROT(LEFT);
     IF (AND(NOT(DANGER), AND(Pos_Right, NOT(Pos_Here)))); 			   ROT(RIGHT);
     IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			   ROT(AHEAD);
     IF (AND(NOT(DANGER), AND(Pos_Ahead, NOT(Pos_Here)))); 			   VEL(FAST);
-    IF (OR(Pos_Here, NOT(Pos_Ahead)));		 			                   VEL(NONE);
+    IF (OR(Pos_Here, NOT(Pos_Ahead)));		 			           VEL(NONE);
 
     //danger
-    IF (AND(DANGER, AND(Obs_Right, NOT(Obs_Left)))); 			         ROT(LEFT);
-    IF (AND(DANGER, AND(Obs_Left, NOT(Obs_Right)))); 			         ROT(RIGHT);
-    IF (AND(DANGER, AND(Obs_Right, Obs_Left))); 				           ROT(AHEAD);
+    IF (AND(DANGER, AND(Obs_Right, NOT(Obs_Left)))); 			           ROT(LEFT);
+    IF (AND(DANGER, AND(Obs_Left, NOT(Obs_Right)))); 			           ROT(RIGHT);
+    IF (AND(DANGER, AND(Obs_Right, Obs_Left))); 				   ROT(AHEAD);
 
-    IF (AND(DANGER, AND(AND(Obs_Ahead, Obs_Left), Obs_Right)));		 VEL(BACK);
-    IF (AND(DANGER, (OR(Obs_Right, Obs_Left), NOT(Obs_Ahead)))); 	 VEL(SLOW);
-    IF (NOT(OR(DANGER, (OR(OR(Obs_Right,Obs_Left), Obs_Ahead))))); VEL(FAST);
+    IF (AND(DANGER, AND(AND(Obs_Ahead, Obs_Left), Obs_Right)));		           VEL(BACK);
+    IF (AND(DANGER, (OR(Obs_Right, Obs_Left), NOT(Obs_Ahead)))); 	           VEL(SLOW);
+    IF (NOT(OR(DANGER, (OR(OR(Obs_Right,Obs_Left), Obs_Ahead)))));                 VEL(FAST);
 
 
 
-    IF (AND(Obs_Left,  NOT(Obs_Right)));                           ROT(RIGHT);
-    IF (AND(Obs_Right, NOT(Obs_Left)));                            ROT(LEFT);
-    IF (AND(Obs_Right, Obs_Left));                                 ROT(AHEAD);
-    IF (Obs_Ahead);                                                VEL(RIGHT);
-    IF (AND((OR(Obs_Right, Obs_Left)), NOT(Obs_Ahead)));           VEL(SLOW);
-    IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));               VEL(FAST);
+    IF (AND(Obs_Left,  NOT(Obs_Right)));                                           ROT(RIGHT);
+    IF (AND(Obs_Right, NOT(Obs_Left)));                                            ROT(LEFT);
+    IF (AND(Obs_Right, Obs_Left));                                                 ROT(AHEAD);
+    IF (Obs_Ahead);                                                                VEL(RIGHT);
+    IF (AND((OR(Obs_Right, Obs_Left)), NOT(Obs_Ahead)));                           VEL(SLOW);
+    IF (NOT(OR(OR(Obs_Right,Obs_Left), Obs_Ahead)));                               VEL(FAST);
     RULEEND;
-	if(pos_err < delta_pos){ //Acceptable to look for next node within this range (could use Pos_Here == 1)
-		return 1;
-  }
-	return 0;
+    if(pos_err < delta_pos){ //Acceptable to look for next node within this range (could use Pos_Here == 1)
+       return 1;
+    }
+    return 0;
 }
 
 double ResponseToVel (double response){
@@ -203,20 +203,20 @@ void PaddBorder(int i, int j){
 }
 void addPaddingObstacles(){
       //add padding around obstacles to avoid disruption of robots-path.
-      int h                  = grid->height-1;
-      int w                  = grid->width-1;
-      for(int i = 0; i < h; i++){
-        for(int j = 0; j < w; j++){
-          int check          = GetCellState(grid,i,j);
-          if(check == -3){
-            for(int a = -1; a<=1;a++){
-              for(int b=-1; b<=1;b++){
-                PaddObs(i+a,j+b);
-              }
-            }
+  int h                  = grid->height-1;
+  int w                  = grid->width-1;
+  for(int i = 0; i < h; i++){
+    for(int j = 0; j < w; j++){
+      int check          = GetCellState(grid,i,j);
+      if(check == -3){
+        for(int a = -1; a<=1;a++){
+          for(int b=-1; b<=1;b++){
+             PaddObs(i+a,j+b);
           }
         }
       }
+    }
+  }
 }
 void addPaddingBorderTop(){
       //add padding around border to avoid disruption of robots-path.
@@ -288,7 +288,7 @@ void FuzzyPlanSearch(double arrayX[], double arrayY[], int counter){
     storeGoal.j   = arrayY[i];
 
   }
-  SetPosture(arrayX[counter],arrayY[counter],goal.th);  //set startpos
+  SetPosture(arrayX[counter],arrayY[counter],goal.th);  //set posture
   for(int i=counter-1; i>=0; i--){                      //start from the last pos in array(start) -> goto -> goal
     condition=0;                                        //set to 0 each time.
   //  printf("\nNodes Until Goal = %d,SizeOf Arr=%d\n",i,counter);
