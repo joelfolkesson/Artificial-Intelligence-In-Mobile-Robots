@@ -57,16 +57,16 @@ void UpdatePos(){
 
 int GoTo2(Posture goal){
 
-	float dx_dist       ,
-	      dy_dist       ,
-	      th_dist       ,
-	      th_err        ,
-	      vl, vr        ,
-	      p_vel, p_th   ,
-	      pos_err       ,
-	      kpos      = 1 ,
-	      kth       = -3,
-	      delta_pos = 35;
+  float dx_dist       ,
+        dy_dist       ,
+        th_dist       ,
+        th_err        ,
+        vl, vr        ,
+        p_vel, p_th   ,
+        pos_err       ,
+        kpos      = 1 ,
+        kth       = -3,
+        delta_pos = 35;
   FPred Pos_Left, Pos_Right, Pos_Ahead, Pos_Here, DANGER, Obs_Left,Obs_Right,Obs_Ahead;
   Posture currentPos;
 
